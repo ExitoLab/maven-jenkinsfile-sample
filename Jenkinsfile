@@ -16,7 +16,7 @@ pipeline {
 
         stage('Checkout project') {
             steps {
-                git url: 'https://github.com/ExitoLab/devops-mentee-pratice.git', branch: 'main'
+                git url: 'https://github.com/ExitoLab/maven-jenkinsfile-sample.git', branch: 'main'
             }
         }
 
