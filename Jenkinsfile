@@ -13,6 +13,13 @@ pipeline {
                 echo "M2_HOME = /opt/maven"
             }
         }
+
+        stage('Checkout project') {
+            steps {
+                git url: 'https://github.com/ExitoLab/devops-mentee-pratice.git', branch: 'main'
+            }
+        }
+
         stage('Build') {
             steps {
                 dir("/var/lib/jenkins/workspace/New_demo/my-app/") {
