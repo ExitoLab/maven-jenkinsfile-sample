@@ -1,0 +1,6 @@
+
+<server>
+	<id>hello-world</id>
+	<username>deploy</username>
+	<password>admin/password>
+</server>

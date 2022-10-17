@@ -18,6 +18,22 @@
     <maven.compiler.target>1.7</maven.compiler.target>
   </properties>
 
+
+  <distributionManagement>
+    <repository>
+      <id>hello-world</id>
+      <name>Internal Releases</name>
+      <url>http://127.0.0.1:8082/repository/hello-world/</url>
+    </repository>
+  
+    <snapshotRepository>
+      <id>hello-world-snapshot</id>
+      <name>Internal Releases</name>
+      <url>http://127.0.0.1:8082/repository/hello-world-snapshot/</url>
+    </snapshotRepository>
+
+  </distributionManagement>
+
   <dependencies>
     <dependency>
       <groupId>junit</groupId>

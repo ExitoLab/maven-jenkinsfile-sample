@@ -3,7 +3,19 @@ pipeline {
 
     tools {
         maven "maven"
-        jdk "jdk"
+    }
+
+    environment {
+        // This can be nexus3 or nexus2
+        NEXUS_VERSION = "nexus3"
+        // This can be http or https
+        NEXUS_PROTOCOL = "http"
+        // Where your Nexus is running
+        NEXUS_URL = "127.0.0.1:8082"
+        // Repository where we will upload the artifact
+        NEXUS_REPOSITORY = "hello-world"
+        // Jenkins credential id to authenticate to Nexus OSS
+        NEXUS_CREDENTIAL_ID = "nexus_admin"
     }
 
     stages {
@@ -20,21 +32,99 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Maven: Test') {
             steps {
-                dir("/var/lib/jenkins/workspace/New_demo/my-app/") {
-                sh 'mvn -B -DskipTests clean package'
+                dir("my-app") {
+                    sh 'mvn -e --batch-mode test -Dmaven.test.skip=true -Dmaven.test.failure.ignore=true dependency:resolve-plugins dependency:resolve'
+                    archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
                 }
-            
             }
         }
+
+        stage('Sonar: Scan') {
+          steps {
+            dir("my-app") {
+                withSonarQubeEnv(installationName: 'sonar-server', credentialsId: 'sonarqube') {
+                sh 'mvn sonar:sonar'
+                }
+            }
+          }
+        }
+
+        stage('Build') {
+            steps {
+                dir("my-app") {
+                    sh 'mvn -B -DskipTests clean package'
+                }
+            }
+        }
+        
+        stage('Directory') {
+            steps {
+                dir("my-app") {
+                    sh 'ls -la'
+                    sh "ls -la target/"
+                }
+            }
+        }
+        
+        stage("publish to nexus") {
+            steps {
+                script {
+                    dir("my-app") {
+                    // Read POM xml file using 'readMavenPom' step , this step 'readMavenPom' is included in: https://plugins.jenkins.io/pipeline-utility-steps
+                    pom = readMavenPom file: "pom.xml";
+                    // Find built artifact under target folder
+                    filesByGlob = findFiles(glob: "target/*.*");
+                    // Print some info from the artifact found
+                    echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
+                    // Extract the path from the File found
+                    artifactPath = filesByGlob[0].path;
+                    // Assign to a boolean response verifying If the artifact name exists
+                    artifactExists = fileExists artifactPath;
+
+                    if(artifactExists) {
+                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version ${pom.version}";
+
+                        nexusArtifactUploader(
+                            nexusVersion: NEXUS_VERSION,
+                            protocol: NEXUS_PROTOCOL,
+                            nexusUrl: NEXUS_URL,
+                            groupId: pom.groupId,
+                            version: pom.version,
+                            repository: NEXUS_REPOSITORY,
+                            credentialsId: NEXUS_CREDENTIAL_ID,
+                            artifacts: [
+                                // Artifact generated such as .jar, .ear and .war files.
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: artifactPath,
+                                type: pom.packaging],
+
+                                // Lets upload the pom.xml file for additional information for Transitive dependencies
+                                [artifactId: pom.artifactId,
+                                classifier: '',
+                                file: "pom.xml",
+                                type: "pom"]
+                            ]
+                        );
+
+                    } else {
+                        error "*** File: ${artifactPath}, could not be found";
+                    }
+                } }
+            }
+        }
+
+
      }
-    post {
-       always {
-          junit(
-        allowEmptyResults: true,
-        testResults: '*/test-reports/.xml'
-      )
-      }
-   } 
+//     post {
+//        always {
+//           junit(
+//         allowEmptyResults: true,
+//         testResults: '*/test-reports/.xml'
+//       )
+//       }
+//    }
+
 }
